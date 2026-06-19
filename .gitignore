@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+data/trade_log.csv
+data/*.csv
+data/*.json
+bot.log
+scratch/
