@@ -11,13 +11,16 @@ An automated, high-frequency scalping trading robot for **XAUUSD (Gold) CFD** op
 
 ## ⚡ Key Features
 
-*   **Triple Timeframe Confluence (M15 → M5 → M1)**: Uses M15 for macro-trend bias, M5 for structural confluence, and M1 for instant, precise entry timing.
-*   **SATS Indicator Engine**: Translated directly from Pine Script, utilizing Kaufman's Efficiency Ratio (ER) and volatility-adaptive SuperTrend bands.
-*   **Breakout Probability Filter**: Dynamically analyzes historical candles to determine the exact probability of next-candle breakouts before executing entries.
-*   **Advanced Risk Controls**:
-    *   Dynamic position sizing based on account equity and ATR volatility.
-    *   Max SL capped at 4 ATR and automatic partial closing at TP1 (0.5R).
-    *   Daily maximum loss limits and consecutive-losses circuit breaker.
+*   **Triple Timeframe Confluence (M15 → M5)**: Enforces M15 macro-trend bias (TQI >= 0.60, ER >= 0.50, and ATR Ratio >= 1.0) and uses M5 for structural confluence and entry execution.
+*   **SATS Indicator Engine**: Volatility-adaptive Kaufman Adaptive Bands using Kaufman's Efficiency Ratio (ER) and Trend Quality Index (TQI) with asymmetric trailing side compression.
+*   **Volatility & Trend Regime Detection**: Composite 3-z-score regime classifier categorizing market phases into `TRENDING`, `RANGING`, `DEAD`, or `EXPLOSIVE`.
+*   **Breakout Probability Filter**: Statistically analyzes historical candles, requiring >= 60% probability of a new high/low to validate entries.
+*   **Advanced Risk Controls (Risk Engine V2)**:
+    *   Dynamic position sizing based on account balance risk (0.5% default) and ATR volatility.
+    *   Stop Loss set to 1.2 ATR, target reward-to-risk ratio of 1.5R, and server-side execution.
+    *   Partial close (50% position) and automatic breakeven SL adjustment at +1R.
+    *   Daily maximum loss limits (2%) and consecutive-loss circuit breakers / cooldown periods.
+*   **Pre-Flight Log Diagnostic**: Suite for analyzing historical risk performance, exit distribution, and slippage.
 *   **Auto-Reconnection**: Resilient MT5 connection polling that automatically handles network disconnections and path resolution.
 
 ---
@@ -32,20 +35,27 @@ xauusd_scalping_bot/
 │   └── trade_log.csv           # Historical trade logging database
 ├── scratch/
 │   ├── execute_test_trade.py   # Live testing order execution
+│   ├── phase0_diagnostic.py    # Pre-flight diagnostic script for trade logs
 │   └── validate_integration.py # Sanity imports & dependencies test
 ├── src/
 │   ├── breakout_probability.py # Breakout probability analyzer
-│   ├── data_logger.py          # CSV logs management
+│   ├── dashboard.py            # Diagnostic performance terminal dashboard
+│   ├── data_logger.py          # 27-metric CSV trade logs management
 │   ├── main.py                 # Bot daemon main loop
 │   ├── mt5_connector.py        # MT5 platform bridge & path resolver
-│   ├── risk_filters.py         # Capital protection & volatility filters
-│   ├── risk_management.py      # Sizing & server-side SL/TP calculations
-│   └── strategy_execution.py   # Confluence logic & position monitoring
+│   ├── regime_detection.py     # Volatility & trend regime classification engine
+│   ├── report_generator.py     # Historical performance diagnostic report generator
+│   ├── risk_filters.py         # Daily drawdown & consecutive loss circuit breakers
+│   ├── risk_management.py      # Capital protection & dynamic sizing calculations
+│   └── strategy_execution.py   # Confluence logic, confidence scoring, & monitoring
 ├── tests/
 │   ├── test_breakout_probability.py
-│   └── test_gaps.py
+│   ├── test_gaps.py
+│   ├── test_quant_improvements.py # Validates SATS V2 math & calculations
+│   └── test_session_regime.py   # Tests session/regime classification rules
 ├── .env                        # Local credentials (ignored by git)
 ├── .gitignore
+├── architecture_and_data_inputs.md # SATS V2 Architecture & Data Reference
 ├── requirements.txt
 └── README.md
 ```
