@@ -14,7 +14,7 @@ class SATSLogic:
     def calculate_efficiency_ratio(self, df, window):
         change = abs(df['close'] - df['close'].shift(window))
         volatility = abs(df['close'] - df['close'].shift(1)).rolling(window=window).sum()
-        return change / volatility
+        return (change / volatility.replace(0, np.nan)).fillna(0.5)
 
     def calculate_tqi(self, df):
         # Efficiency (35%)
@@ -23,7 +23,7 @@ class SATSLogic:
         # Volatility (20%) - Current ATR vs Baseline
         atr = self.calculate_atr(df, self.config.ATR_LENGTH)
         atr_avg = atr.rolling(window=100).mean()
-        vol_score = np.clip(atr / atr_avg, 0, 1)
+        vol_score = np.clip((atr / atr_avg.replace(0, np.nan)).fillna(1.0), 0, 1)
 
         # Structure (25%) - Highs/Lows analysis (Simplified)
         structure_score = self.calculate_structure_score(df, self.config.STRUCTURE_WINDOW)
@@ -55,14 +55,24 @@ class SATSLogic:
         atr = self.calculate_atr(df, self.config.ATR_LENGTH)
         tqi = self.calculate_tqi(df)
         
-        # Adaptive Engine
+        # Adaptive Engine: Kaufman Efficiency Ratio & Volatility Ratio (FR-SATS-009)
         er = self.calculate_efficiency_ratio(df, self.config.EFFICIENCY_WINDOW)
-        adaptation_factor = 1 + (er - 0.5) * self.config.ADAPTATION_STRENGTH
+        atr_avg = atr.rolling(window=100).mean().bfill()
+        
+        # Kaufman regime-based multiplier: Tighter bands in efficient trending markets (high ER),
+        # wider/adaptive bands in ranging or noisy markets (low ER).
+        regime_multiplier = np.where(er > 0.5, 
+                                     1.0 - (er - 0.5) * self.config.ADAPTATION_STRENGTH, 
+                                     1.0 + (0.5 - er) * self.config.ADAPTATION_STRENGTH)
+        
+        # Volatility ratio adjusts band width relative to the 100-bar baseline
+        vol_ratio = (atr / atr_avg.replace(0, np.nan)).fillna(1.0)
+        adaptation_factor = regime_multiplier * vol_ratio
         
         # Trend Quality Influence
         quality_factor = np.power(tqi, self.config.QUALITY_CURVE_POWER) * self.config.QUALITY_INFLUENCE
         
-        # Efficiency Weighted ATR
+        # Efficiency Weighted ATR (FR-SATS-014)
         weighted_atr = atr * er if self.config.EFFICIENCY_WEIGHTED_ATR_ENABLED else atr
         
         # Base Band Width

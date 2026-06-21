@@ -24,17 +24,22 @@ MT5_PATH = os.environ.get("MT5_PATH", "C:\\Program Files\\MetaTrader 5\\terminal
 SYMBOL = "XAUUSD"
 # Confluence Timeframes
 MACRO_TREND_TIMEFRAME = "M15"  # Higher timeframe for trend filter (confluence bias)
-CONF_TREND_TIMEFRAME = "M5"    # Intermediate timeframe for signal verification
-ENTRY_TIMEFRAME = "M1"         # Entry timeframe for SATS signals, breakout probabilities, and entry triggers
+CONF_TREND_TIMEFRAME = "M15"    # Intermediate trend filter (since we only use M15 and M5 now)
+ENTRY_TIMEFRAME = "M5"         # Primary signal generator, entry trigger, and SL/TP timeframe
+
 
 # Risk Management
 RISK_PER_TRADE_PERCENT = 0.005  # 0.5% risk per trade
+SL_ATR_MULTIPLIER = 1.2        # Default Stop Loss ATR multiplier for V2
 MAX_SL_ATR_MULTIPLIER = 4  # Maximum Stop Loss of 4 ATR
+MAX_SL_PIPS = 50  # Maximum Stop Loss in pips (e.g. 50 pips is $5.00 distance on XAUUSD)
 
 # Take Profit
 TP_MODE = "FIXED"
+TP_MULTIPLIER = 1.5           # Default TP multiplier (1.5R) for V2
 TP1_MULTIPLIER = 0.5  # Target 0.5R for TP1 (reduced size for quicker take-profit execution)
 TP1_PARTIAL_CLOSE_PERCENT = 0.5  # Close 50% of position at TP1
+MAX_TP_PIPS = 30  # Maximum Take Profit in pips (e.g. 30 pips is $3.00 distance on XAUUSD)
 
 # Trade Timeout
 TRADE_TIMEOUT_BARS = 100
@@ -71,9 +76,9 @@ RSI_MEMORY_BARS = 20
 VOLUME_WINDOW = 20
 
 # Risk Filters
-SESSION_FILTER_ENABLED = False
-SESSION_START_HOUR = 9  # Example: 9 AM UTC
-SESSION_END_HOUR = 17  # Example: 5 PM UTC
+SESSION_FILTER_ENABLED = True
+SESSION_START_HOUR = 7  # 07:00 UTC (12:30 PM IST)
+SESSION_END_HOUR = 16   # 16:00 UTC (09:30 PM IST)
 
 ECONOMIC_CALENDAR_CHECK_ENABLED = False
 NEWS_EVENT_PAUSE_WINDOW_MINUTES = 15 # 15 minutes before/after
@@ -104,3 +109,32 @@ TRADE_LOG_FILE = "trade_log.csv"
 # Logging
 LOG_LEVEL = "INFO"
 LOG_FILE = "bot.log"
+
+# SATS Scalper Upgrades (Regimes, Sessions, Cooldowns, Confidence Score)
+REGIME_TRENDING_ER_MIN = 0.45
+REGIME_DEAD_ATR_RATIO = 0.5
+REGIME_EXPLOSIVE_ATR_RATIO = 2.0
+ALLOWED_REGIMES = ['TRENDING', 'RANGING', 'DEAD', 'EXPLOSIVE']  # Log only: allow all by default in Phase 1
+
+REGIME_LOOKBACK_BARS = 100
+# Composite regime score = mean(z_ratio, z_er, z_tqi) — three rolling z-scores over REGIME_LOOKBACK_BARS.
+# DEAD/EXPLOSIVE are anchored to z_ratio (vol) only; TRENDING/RANGING use the composite.
+REGIME_VOL_DEAD_THRESHOLD = -1.0       # z_ratio below this → DEAD (suppressed vol)
+REGIME_VOL_EXPLOSIVE_THRESHOLD = 1.5   # z_ratio above this → EXPLOSIVE (vol spike)
+REGIME_TREND_MIN_THRESHOLD = 0.1       # composite score >= this → TRENDING (slight positive bias required)
+
+SESSION_TEST_FILTER_ENABLED = False
+
+SESSION_HOURS = {
+    'Asia': (22, 8),          # 10 PM to 8 AM UTC
+    'London': (8, 13),        # 8 AM to 1 PM UTC
+    'Overlap': (13, 16),      # 1 PM to 4 PM UTC
+    'NewYork': (16, 22)       # 4 PM to 10 PM UTC
+}
+DISABLED_SESSIONS = []        # Disallowed trading sessions
+
+MIN_CONFIDENCE_SCORE = 55.0   # Confidence threshold (0-100)
+
+CONSECUTIVE_LOSS_COOLDOWN_3 = 30  # Minutes to pause after 3 losses
+CONSECUTIVE_LOSS_COOLDOWN_5 = 60  # Minutes to pause after 5 losses
+
