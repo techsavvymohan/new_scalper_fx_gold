@@ -49,6 +49,10 @@ graph TD
 *   **[dashboard.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/dashboard.py)**: Provides a quick terminal interface wrapper to view diagnostic performance.
 *   **[config.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/config/config.py)**: Contains all tunable coefficients, threshold limits, server details, and execution parameters.
 *   **[phase0_diagnostic.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/phase0_diagnostic.py)**: Diagnostic tool that reads closed trade logs to verify R:R asymmetry, stop loss adjustments, and filter effectiveness.
+*   **[test_quant_improvements.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/tests/test_quant_improvements.py)**: Verifies correctness of SATS indicator values, bands calculations, Efficiency Ratio, and Trend Quality Index.
+*   **[test_session_regime.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/tests/test_session_regime.py)**: Asserts correct session time windows (London, NY, Asia, Overlap) and z-score-based regime classification math.
+*   **[test_breakout_probability.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/tests/test_breakout_probability.py)**: Confirms correct statistical parsing and lookback calculation of candle color histories.
+*   **[test_gaps.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/tests/test_gaps.py)**: Checks data gap handling and verification.
 
 ---
 
@@ -92,18 +96,18 @@ The development of SATS V2 is structured across four phases. The implementation 
 | Module # | Component Name | Phase | Code Location | Status | Default Mode / Action |
 |---|---|---|---|---|---|
 | **Phase 0** | **Pre-Flight Diagnostic** | Phase 0 | `scratch/phase0_diagnostic.py` | **Implemented** | Analyzes trade log, prints exit breakdowns, server-side checks, and SL/TP asymmetry. |
-| **Module 1** | **Session Engine** | Phase 1 | `strategy_execution.py` (line 16) | **Implemented** | Classifies `ASIA`, `LONDON`, `NEW_YORK`, `OVERLAP`. (Log-only by default). |
-| **Module 2** | **Regime Engine** | Phase 1 | `regime_detection.py` | **Implemented** | Composite 3-z-score regime classifier (`DEAD`, `EXPLOSIVE`, `TRENDING`, `RANGING`). (Log-only by default). |
-| **Module 3** | **Enhanced Logging** | Phase 1 | `data_logger.py` | **Implemented** | Captures 27 metrics including session, normalized regime z-scores, slippage, and R:R. |
+| **Module 1** | **Session Engine** | Phase 1 | `src/strategy_execution.py` (line 16) | **Implemented** | Classifies `ASIA`, `LONDON`, `NEW_YORK`, `OVERLAP`. (Log-only by default). |
+| **Module 2** | **Regime Engine** | Phase 1 | `src/regime_detection.py` | **Implemented** | Composite 3-z-score regime classifier (`DEAD`, `EXPLOSIVE`, `TRENDING`, `RANGING`). (Log-only by default). |
+| **Module 3** | **Enhanced Logging** | Phase 1 | `src/data_logger.py` | **Implemented** | Captures 27 metrics including session, normalized regime z-scores, slippage, and R:R. |
 | **Module 4** | **Location Engine** | Phase 2 | N/A | *Deferred* | Will query pivot structures (PDH, PDL, PWH, PWL) to filter key entry locations. |
 | **Module 5** | **Box Theory Engine** | Phase 2 | N/A | *Deferred* | Will define M5 consolidation boxes to prevent trading inside range bounds. |
 | **Module 6** | **Volume Engine** | Phase 3 | N/A | *Deferred* | Will integrate tick volume z-scores to ensure liquidity validation. |
-| **Module 7** | **Confidence Score** | Phase 1 | `strategy_execution.py` (line 93) | **Implemented** | Weighted score combining TQI, ER, volatility ratio, and breakout probability. |
-| **Module 8** | **M15 Trend Engine** | Phase 1 | `strategy_execution.py` (line 68) | **Implemented** | Core gate enforcing M15 macro trend, TQI >= 0.60, ER >= 0.50, and ATR Ratio >= 1.0. |
-| **Module 9** | **M5 Entry Signal** | Phase 1 | `sats_logic.py` & `strategy_execution.py` | **Implemented** | Primary execution trigger on M5 band flips with TQI >= 0.60 filter. |
-| **Module 10** | **Risk Engine V2** | Phase 1 | `risk_management.py` & `strategy_execution.py` | **Implemented** | Enforces 1.2 ATR stop loss, 1.5R target, server-side execution, daily loss limits, and cooldowns. |
-| **Module 11** | **Breakout Probability** | Phase 1 | `breakout_probability.py` | **Implemented** | Requires >= 60% historical probability of a new high/low to validate entries. |
-| **Module 12** | **Dashboard & Reports** | Phase 1 | `report_generator.py` & `dashboard.py` | **Implemented** | Outputs performance analytics, including exit breakdown, confidence buckets, and strategic metrics. |
+| **Module 7** | **Confidence Score** | Phase 1 | `src/strategy_execution.py` (line 93) | **Implemented** | Weighted score combining TQI, ER, volatility ratio, and breakout probability. |
+| **Module 8** | **M15 Trend Engine** | Phase 1 | `src/strategy_execution.py` (line 68) | **Implemented** | Core gate enforcing M15 macro trend, TQI >= 0.60, ER >= 0.50, and ATR Ratio >= 1.0. |
+| **Module 9** | **M5 Entry Signal** | Phase 1 | `src/sats_logic.py` & `src/strategy_execution.py` | **Implemented** | Primary execution trigger on M5 band flips with TQI >= 0.60 filter. |
+| **Module 10** | **Risk Engine V2** | Phase 1 | `src/risk_management.py` & `src/strategy_execution.py` | **Implemented** | Enforces 1.2 ATR stop loss, 1.5R target, server-side execution, daily loss limits, and cooldowns. |
+| **Module 11** | **Breakout Probability** | Phase 1 | `src/breakout_probability.py` | **Implemented** | Requires >= 60% historical probability of a new high/low to validate entries. |
+| **Module 12** | **Dashboard & Reports** | Phase 1 | `src/report_generator.py` & `src/dashboard.py` | **Implemented** | Outputs performance analytics, including exit breakdown, confidence buckets, and strategic metrics. |
 | **Module 13** | **M1 Entry Timing** | Phase 3 | N/A | *Deferred* | Aims to refine execution timing down to the M1 timeframe. |
 
 ---
@@ -274,6 +278,19 @@ REGIME_VOL_DEAD_THRESHOLD = -1.0     # Volatility z-score below this is classifi
 REGIME_VOL_EXPLOSIVE_THRESHOLD = 1.5 # Volatility z-score above this is classified as EXPLOSIVE
 REGIME_TREND_MIN_THRESHOLD = 0.1     # Composite score above this is classified as TRENDING
 ALLOWED_REGIMES = ['TRENDING', 'RANGING', 'DEAD', 'EXPLOSIVE'] # Phase 1 default (log-only)
+
+# Breakout Probability Indicator
+BREAKOUT_PROBABILITY_ENABLED = True
+BREAKOUT_MIN_PROBABILITY_THRESHOLD = 0.60 # Minimum probability threshold to confirm bias (60%)
+
+# Session & Confidence scoring
+SESSION_TEST_FILTER_ENABLED = False
+DISABLED_SESSIONS = []
+MIN_CONFIDENCE_SCORE = 55.0 # Confidence threshold (0-100)
+
+# Cooldowns
+CONSECUTIVE_LOSS_COOLDOWN_3 = 30  # Minutes to pause after 3 losses
+CONSECUTIVE_LOSS_COOLDOWN_5 = 60  # Minutes to pause after 5 losses
 ```
 
 ---
