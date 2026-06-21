@@ -196,6 +196,42 @@ class StrategyExecution:
         self.monitor_positions(df_entry, entry_tf)
         self.sync_closed_trades()
 
+    def get_key_levels(self, symbol):
+        pdh, pdl, pwh, pwl = None, None, None, None
+        try:
+            if not self.mt5_connector.ensure_connected():
+                return pdh, pdl, pwh, pwl
+            
+            rates_d1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 1, 1)
+            if rates_d1 is not None and len(rates_d1) > 0:
+                pdh = float(rates_d1[0]['high'])
+                pdl = float(rates_d1[0]['low'])
+                
+            rates_w1 = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_W1, 1, 1)
+            if rates_w1 is not None and len(rates_w1) > 0:
+                pwh = float(rates_w1[0]['high'])
+                pwl = float(rates_w1[0]['low'])
+        except Exception as e:
+            print(f"Error fetching key levels for {symbol}: {e}")
+        return pdh, pdl, pwh, pwl
+
+    def calculate_level_distances(self, entry_price, pdh, pdl, pwh, pwl, symbol):
+        try:
+            symbol_info = self.mt5_connector.get_symbol_info(symbol)
+            point = symbol_info.point if symbol_info is not None else 0.01
+            # 1 pip on XAUUSD is 0.10 price distance. Since point is 0.01, 1 pip = 10 * point.
+            pip_size = 10.0 * point
+            
+            dist_pdh = round(abs(entry_price - pdh) / pip_size, 2) if pdh is not None else None
+            dist_pdl = round(abs(entry_price - pdl) / pip_size, 2) if pdl is not None else None
+            dist_pwh = round(abs(entry_price - pwh) / pip_size, 2) if pwh is not None else None
+            dist_pwl = round(abs(entry_price - pwl) / pip_size, 2) if pwl is not None else None
+            
+            return dist_pdh, dist_pdl, dist_pwh, dist_pwl
+        except Exception as e:
+            print(f"Error calculating level distances: {e}")
+            return None, None, None, None
+
     def execute_trade(self, order_type, current_bar, atr, m15_trend, session, regime, norm_vol, norm_trend, tqi, atr_ratio, breakout_prob, confidence_score):
         symbol = self.config.SYMBOL
         entry_price = current_bar['close']
@@ -212,6 +248,11 @@ class StrategyExecution:
         if lot:
             result = self.mt5_connector.place_order(symbol, order_type, lot, price=None, sl=sl, tp=tp, comment="SATS Scalper")
             if result:
+                from datetime import timezone
+                pdh, pdl, pwh, pwl = self.get_key_levels(symbol)
+                dist_pdh, dist_pdl, dist_pwh, dist_pwl = self.calculate_level_distances(result.price, pdh, pdl, pwh, pwl, symbol)
+                entry_hour_utc = datetime.now(timezone.utc).hour
+
                 self.data_logger.log_trade({
                     "entry_time": datetime.now(),
                     "symbol": symbol,
@@ -236,7 +277,12 @@ class StrategyExecution:
                     "rr_achieved": None,
                     "intended_entry_price": entry_price,
                     "realized_slippage": round(result.price - entry_price if order_type == mt5.ORDER_TYPE_BUY else entry_price - result.price, 2),
-                    "breakout_prob": breakout_prob
+                    "breakout_prob": breakout_prob,
+                    "dist_to_pdh_pips": dist_pdh,
+                    "dist_to_pdl_pips": dist_pdl,
+                    "dist_to_pwh_pips": dist_pwh,
+                    "dist_to_pwl_pips": dist_pwl,
+                    "entry_hour_utc": entry_hour_utc
                 })
 
     def monitor_positions(self, df_signal, signal_tf):

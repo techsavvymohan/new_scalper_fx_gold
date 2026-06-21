@@ -14,7 +14,8 @@ class DataLogger:
             "exit_price", "sl", "tp", "lot", "m15_trend", "profit", "status", "ticket",
             "session", "regime", "regime_norm_vol", "regime_norm_trend", "tqi", "atr_ratio", 
             "volume_score", "confidence_score", "box_size", "exit_type", "rr_achieved", 
-            "intended_entry_price", "realized_slippage", "breakout_prob"
+            "intended_entry_price", "realized_slippage", "breakout_prob",
+            "dist_to_pdh_pips", "dist_to_pdl_pips", "dist_to_pwh_pips", "dist_to_pwl_pips", "entry_hour_utc"
         ]
         if not os.path.exists(self.log_path):
             df = pd.DataFrame(columns=columns)
