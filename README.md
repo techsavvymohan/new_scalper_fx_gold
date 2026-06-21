@@ -25,6 +25,34 @@ An automated, high-frequency scalping trading robot for **XAUUSD (Gold) CFD** op
 
 ---
 
+## 🔄 System Architecture & Workflow
+
+```mermaid
+graph TD
+    A[main.py: Entry Loop] -->|Iterates every 60s| B[risk_filters.py: RiskFilters]
+    B -->|Check Circuit Breakers| C{Trading Allowed?}
+    C -->|No| A
+    C -->|Yes| D[strategy_execution.py: StrategyExecution]
+    D -->|Request Market Data| E[mt5_connector.py: MT5Connector]
+    E -->|Retrieve M15/M5 OHLCV| D
+    D -->|Compute Indicators| F[sats_logic.py: SATSLogic]
+    D -->|Compute Volatility Regimes| G[regime_detection.py: RegimeDetection]
+    D -->|Compute Statistical Probabilities| H[breakout_probability.py: BreakoutProbability]
+    D -->|Verify Rules & Confluence| I{Signal Validated?}
+    I -->|No| A
+    I -->|Yes| J[risk_management.py: RiskManagement]
+    J -->|Calculate dynamically sized SL/TP| D
+    D -->|Send Order Request| E
+    E -->|Execute Trade on Broker Server| K[MT5 Trade Server]
+    D -->|Log Execution Details| L[data_logger.py: DataLogger]
+    D -->|Monitor Positions & Apply BE Stop| M[Position Monitoring]
+    M -->|Modify Server-side Stop Loss| E
+    D -->|Sync closed trade outcomes| N[Trade Synchronization]
+    L -->|Write to log file| O[(trade_log.csv)]
+```
+
+---
+
 ## 📂 Project Structure
 
 ```text
