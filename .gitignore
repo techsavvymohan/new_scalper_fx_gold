@@ -6,3 +6,4 @@ data/*.csv
 data/*.json
 bot.log
 scratch/
+current_strategies.md
