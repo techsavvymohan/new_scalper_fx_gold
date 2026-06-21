@@ -7,6 +7,7 @@ class RiskFilters:
         self.mt5_connector = mt5_connector
 
     def is_trading_allowed(self, df_m5=None):
+        self._cached_deals_7d = None
         if not self.check_session_filter():
             return False
         if not self.check_daily_loss_limit():
@@ -46,14 +47,16 @@ class RiskFilters:
         now = datetime.now()
         start_of_day = datetime(now.year, now.month, now.day)
         
-        if not self.mt5_connector.ensure_connected():
-            return False
+        if getattr(self, '_cached_deals_7d', None) is None:
+            from_date = datetime.now() - timedelta(days=7)
+            self._cached_deals_7d = mt5.history_deals_get(from_date, datetime.now())
             
-        deals = mt5.history_deals_get(start_of_day, now)
+        deals = self._cached_deals_7d
         realized_loss = 0.0
         if deals is not None:
+            start_ts = start_of_day.timestamp()
             for deal in deals:
-                if getattr(deal, 'magic', 0) == 123456:
+                if getattr(deal, 'time', 0) >= start_ts and getattr(deal, 'magic', 0) == 123456:
                     realized_loss += (deal.profit + deal.commission + deal.swap)
                     
         # Floating loss from currently open positions
@@ -76,8 +79,11 @@ class RiskFilters:
         if not self.mt5_connector.ensure_connected():
             return False
             
-        from_date = datetime.now() - timedelta(days=7)
-        deals = mt5.history_deals_get(from_date, datetime.now())
+        if getattr(self, '_cached_deals_7d', None) is None:
+            from_date = datetime.now() - timedelta(days=7)
+            self._cached_deals_7d = mt5.history_deals_get(from_date, datetime.now())
+            
+        deals = self._cached_deals_7d
         if deals is None or len(deals) == 0:
             return True
             
@@ -119,8 +125,12 @@ class RiskFilters:
         if not self.mt5_connector.ensure_connected():
             return False
             
-        from_date = datetime.now() - timedelta(days=2)
-        deals = mt5.history_deals_get(from_date, datetime.now())
+        if getattr(self, '_cached_deals_7d', None) is not None:
+            deals = self._cached_deals_7d
+        else:
+            from_date = datetime.now() - timedelta(days=2)
+            deals = mt5.history_deals_get(from_date, datetime.now())
+            
         if deals is None or len(deals) == 0:
             return True
             

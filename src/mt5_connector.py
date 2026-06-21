@@ -11,6 +11,7 @@ class MT5Connector:
         self.password = password
         self.server = server
         self.path = path
+        self._symbol_info_cache = {}
 
     def _resolve_exe_path(self):
         """Find the terminal64.exe path from configured path or known defaults."""
@@ -234,12 +235,15 @@ class MT5Connector:
         return positions
 
     def get_symbol_info(self, symbol):
+        if symbol in self._symbol_info_cache:
+            return self._symbol_info_cache[symbol]
         if not self.ensure_connected():
             return None
         info = mt5.symbol_info(symbol)
         if info is None:
             print(f"Failed to retrieve symbol info for {symbol}, error code: {mt5.last_error()}")
             return None
+        self._symbol_info_cache[symbol] = info
         return info
 
     def get_account_info(self):

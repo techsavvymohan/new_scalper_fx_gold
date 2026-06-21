@@ -45,8 +45,18 @@ class StrategyExecution:
 
         # 1. Retrieve market data
         df_macro = self.mt5_connector.get_market_data(self.config.SYMBOL, macro_tf, 200)
-        df_conf = self.mt5_connector.get_market_data(self.config.SYMBOL, conf_tf, 200)
-        df_entry = self.mt5_connector.get_market_data(self.config.SYMBOL, entry_tf, 200)
+        
+        if conf_tf == macro_tf:
+            df_conf = df_macro.copy() if df_macro is not None else None
+        else:
+            df_conf = self.mt5_connector.get_market_data(self.config.SYMBOL, conf_tf, 200)
+            
+        if entry_tf == conf_tf:
+            df_entry = df_conf.copy() if df_conf is not None else None
+        elif entry_tf == macro_tf:
+            df_entry = df_macro.copy() if df_macro is not None else None
+        else:
+            df_entry = self.mt5_connector.get_market_data(self.config.SYMBOL, entry_tf, 200)
 
         if df_macro is None or df_conf is None or df_entry is None:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Error: Failed to retrieve market data for {self.config.SYMBOL}")
@@ -54,8 +64,18 @@ class StrategyExecution:
 
         # 2. Calculate SATS states
         df_macro = self.sats_logic.get_signals(df_macro)
-        df_conf = self.sats_logic.get_signals(df_conf)
-        df_entry = self.sats_logic.get_signals(df_entry)
+        
+        if conf_tf == macro_tf:
+            df_conf = df_macro.copy()
+        else:
+            df_conf = self.sats_logic.get_signals(df_conf)
+            
+        if entry_tf == conf_tf:
+            df_entry = df_conf.copy()
+        elif entry_tf == macro_tf:
+            df_entry = df_macro.copy()
+        else:
+            df_entry = self.sats_logic.get_signals(df_entry)
 
         macro_trend = df_macro['trend'].iloc[-1]
         conf_trend = df_conf['trend'].iloc[-1]
@@ -190,7 +210,7 @@ class StrategyExecution:
         lot = self.risk_management.calculate_lot_size(symbol, risk_amount, sl_pips)
         
         if lot:
-            result = self.mt5_connector.place_order(symbol, order_type, lot, price=entry_price, sl=sl, tp=tp, comment="SATS Scalper")
+            result = self.mt5_connector.place_order(symbol, order_type, lot, price=None, sl=sl, tp=tp, comment="SATS Scalper")
             if result:
                 self.data_logger.log_trade({
                     "entry_time": datetime.now(),
@@ -223,6 +243,11 @@ class StrategyExecution:
         import MetaTrader5 as mt5
         positions = self.mt5_connector.get_open_positions(self.config.SYMBOL)
         
+        # Filter positions belonging to this bot first to avoid loading trade log unnecessarily
+        bot_positions = [pos for pos in positions if getattr(pos, 'magic', 0) == 123456]
+        if not bot_positions:
+            return
+            
         # Load trade log to check original volumes
         import os
         import pandas as pd
@@ -234,10 +259,7 @@ class StrategyExecution:
             except Exception:
                 pass
 
-        for pos in positions:
-            if getattr(pos, 'magic', 0) != 123456:
-                continue
-                
+        for pos in bot_positions:
             # Get original volume
             original_volume = pos.volume
             if trade_log is not None and not trade_log.empty:
@@ -297,19 +319,7 @@ class StrategyExecution:
         import MetaTrader5 as mt5
         import os
         import pandas as pd
-        from datetime import timedelta
-        
-        now = datetime.now()
-        yesterday = now - timedelta(days=3) # Look back 3 days to cover weekends
-        
-        if not self.mt5_connector.ensure_connected():
-            return
-            
-        deals = mt5.history_deals_get(yesterday, now)
-        if deals is None or len(deals) == 0:
-            return
-            
-        closed_deals = [d for d in deals if getattr(d, 'magic', 0) == 123456]
+        from datetime import datetime, timedelta
         
         log_path = self.data_logger.log_path
         if not os.path.exists(log_path):
@@ -317,7 +327,20 @@ class StrategyExecution:
             
         try:
             df = pd.read_csv(log_path)
-            if df.empty:
+            if df.empty or 'status' not in df.columns or not (df['status'] == 'OPEN').any():
+                return  # Early exit: no open trades in the log to reconcile
+                
+            if not self.mt5_connector.ensure_connected():
+                return
+                
+            now = datetime.now()
+            yesterday = now - timedelta(days=3) # Look back 3 days to cover weekends
+            deals = mt5.history_deals_get(yesterday, now)
+            if deals is None or len(deals) == 0:
+                return
+                
+            closed_deals = [d for d in deals if getattr(d, 'magic', 0) == 123456]
+            if not closed_deals:
                 return
                 
             # Cast empty/target columns to avoid dtype warnings/errors
