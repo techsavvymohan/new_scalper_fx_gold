@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import config
 from src.report_generator import ReportGenerator
 
-def display_dashboard():
+def display_dashboard(exclude_manual=False):
     log_path = os.path.join("data", "trade_log.csv")
     if not os.path.exists(log_path):
         print("No trade logs found.")
@@ -17,6 +17,12 @@ def display_dashboard():
     if df.empty:
         print("Trade log is empty.")
         return
+
+    # Filter out manual trades if requested
+    if exclude_manual and 'exit_type' in df.columns:
+        manual_count = (df['exit_type'] == 'MANUAL').sum()
+        df = df[df['exit_type'] != 'MANUAL']
+        print(f"Excluding {manual_count} manually closed trades from the dashboard view.")
 
     print("=== XAUUSD Scalping Bot Performance Dashboard ===")
     print(f"Total Trades: {len(df)}")
@@ -31,14 +37,18 @@ def display_dashboard():
     
     print("\nRecent Trades:")
     # Dynamically select columns that exist in the csv
-    cols = ['entry_time', 'direction', 'entry_price', 'status', 'profit']
+    cols = ['entry_time', 'direction', 'entry_price', 'status', 'profit', 'exit_type']
     existing_cols = [c for c in cols if c in df.columns]
     print(df.tail(10)[existing_cols])
     print("==================================================")
     
     print("\nGenerating Quantitative Analytics Report...")
-    rg = ReportGenerator(config)
+    rg = ReportGenerator(config, exclude_manual=exclude_manual)
     print(rg.generate_report())
 
 if __name__ == "__main__":
-    display_dashboard()
+    import argparse
+    parser = argparse.ArgumentParser(description="Performance Dashboard")
+    parser.add_argument("--exclude-manual", action="store_true", help="Exclude manual trades from analytics")
+    args = parser.parse_args()
+    display_dashboard(exclude_manual=args.exclude_manual)

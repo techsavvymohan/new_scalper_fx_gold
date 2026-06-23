@@ -3,9 +3,10 @@ import numpy as np
 import os
 
 class ReportGenerator:
-    def __init__(self, config):
+    def __init__(self, config, exclude_manual=False):
         self.config = config
         self.log_path = os.path.join("data", self.config.TRADE_LOG_FILE)
+        self.exclude_manual = exclude_manual
 
     def load_data(self):
         if not os.path.exists(self.log_path):
@@ -14,6 +15,9 @@ class ReportGenerator:
             df = pd.read_csv(self.log_path)
             # Filter out open trades for metrics, keep closed ones
             df_closed = df[df['status'] == 'CLOSED'].copy()
+            # Exclude manual trades if requested
+            if self.exclude_manual and 'exit_type' in df_closed.columns:
+                df_closed = df_closed[df_closed['exit_type'] != 'MANUAL']
             # Ensure profit is numeric
             df_closed['profit'] = pd.to_numeric(df_closed['profit'], errors='coerce').fillna(0.0)
             return df_closed

@@ -92,8 +92,13 @@ class StrategyExecution:
         macro_atr_avg = self.sats_logic.calculate_atr(df_macro, 100).iloc[-1]
         macro_atr_ratio = macro_atr / macro_atr_avg if macro_atr_avg > 0 else 1.0
         
-        macro_filter_ok = (macro_tqi >= 0.60) and (macro_er >= 0.50) and (macro_atr_ratio >= 1.0)
-        entry_filter_ok = (entry_tqi >= 0.60)
+        min_macro_tqi = getattr(self.config, 'MIN_MACRO_TQI', 0.60)
+        min_macro_er = getattr(self.config, 'MIN_MACRO_ER', 0.50)
+        min_macro_atr_ratio = getattr(self.config, 'MIN_MACRO_ATR_RATIO', 1.0)
+        min_entry_tqi = getattr(self.config, 'MIN_ENTRY_TQI', 0.60)
+
+        macro_filter_ok = (macro_tqi >= min_macro_tqi) and (macro_er >= min_macro_er) and (macro_atr_ratio >= min_macro_atr_ratio)
+        entry_filter_ok = (entry_tqi >= min_entry_tqi)
 
         # 2.5. Calculate Breakout Probabilities
         new_high_prob = 1.0
@@ -385,7 +390,15 @@ class StrategyExecution:
             if deals is None or len(deals) == 0:
                 return
                 
-            closed_deals = [d for d in deals if getattr(d, 'magic', 0) == 123456]
+            # Find open tickets in CSV to match associated position IDs
+            open_tickets = set(df[df['status'] == 'OPEN']['ticket'].dropna().map(int).unique())
+            entry_position_ids = set()
+            for d in deals:
+                if d.order in open_tickets or getattr(d, 'magic', 0) == 123456:
+                    entry_position_ids.add(d.position_id)
+            
+            # Keep deals with magic == 123456 OR matching the position IDs of our open trades
+            closed_deals = [d for d in deals if getattr(d, 'magic', 0) == 123456 or d.position_id in entry_position_ids]
             if not closed_deals:
                 return
                 
@@ -427,7 +440,10 @@ class StrategyExecution:
                         df.at[idx, 'exit_time'] = exit_time
                         df.at[idx, 'profit'] = profit
                         df.at[idx, 'status'] = 'CLOSED'
-                        df.at[idx, 'exit_type'] = "SL" if profit < 0 else "TP"
+                        if getattr(d, 'magic', 0) != 123456:
+                            df.at[idx, 'exit_type'] = "MANUAL"
+                        else:
+                            df.at[idx, 'exit_type'] = "SL" if profit < 0 else "TP"
                         
                         entry_p = float(row['entry_price'])
                         sl_dist = abs(entry_p - float(row['sl'])) if not pd.isna(row['sl']) else 1.0
@@ -451,21 +467,24 @@ class StrategyExecution:
                             df.at[idx, 'profit'] = round(profit, 2)
                             df.at[idx, 'status'] = 'CLOSED'
                             
-                            # Determine exit type based on price proximity
-                            exit_type = "TIMEOUT"
-                            if not pd.isna(row['sl']) and not pd.isna(row['tp']):
-                                sl_p = float(row['sl'])
-                                tp_p = float(row['tp'])
-                                if row['direction'] == 'BUY':
-                                    if exit_deal.price <= sl_p + 0.05:
-                                        exit_type = "SL"
-                                    elif exit_deal.price >= tp_p - 0.05:
-                                        exit_type = "TP"
-                                else:
-                                    if exit_deal.price >= sl_p - 0.05:
-                                        exit_type = "SL"
-                                    elif exit_deal.price <= tp_p + 0.05:
-                                        exit_type = "TP"
+                            # Determine exit type
+                            if getattr(exit_deal, 'magic', 0) != 123456:
+                                exit_type = "MANUAL"
+                            else:
+                                exit_type = "TIMEOUT"
+                                if not pd.isna(row['sl']) and not pd.isna(row['tp']):
+                                    sl_p = float(row['sl'])
+                                    tp_p = float(row['tp'])
+                                    if row['direction'] == 'BUY':
+                                        if exit_deal.price <= sl_p + 0.05:
+                                            exit_type = "SL"
+                                        elif exit_deal.price >= tp_p - 0.05:
+                                            exit_type = "TP"
+                                    else:
+                                        if exit_deal.price >= sl_p - 0.05:
+                                            exit_type = "SL"
+                                        elif exit_deal.price <= tp_p + 0.05:
+                                            exit_type = "TP"
                             df.at[idx, 'exit_type'] = exit_type
                             
                             sl_dist = abs(row['entry_price'] - row['sl']) if not pd.isna(row['sl']) else 1.0
@@ -476,7 +495,10 @@ class StrategyExecution:
                             # The OUT deals are mapped to separate rows in the CSV, so this IN row realizes 0.0 profit directly
                             df.at[idx, 'profit'] = 0.0
                             df.at[idx, 'status'] = 'CLOSED'
-                            df.at[idx, 'exit_type'] = "TIMEOUT"
+                            if any(getattr(od, 'magic', 0) != 123456 for od in out_deals):
+                                df.at[idx, 'exit_type'] = "MANUAL"
+                            else:
+                                df.at[idx, 'exit_type'] = "TIMEOUT"
                             df.at[idx, 'rr_achieved'] = 0.0
                             updated = True
                             print(f"Synced closed IN trade for ticket {ticket} with 0.0 profit (exit mapped separately).")

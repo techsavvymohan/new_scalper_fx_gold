@@ -54,11 +54,27 @@ def main():
     try:
         while True:
             # 1. Check if trading is allowed by filters
-            if risk_filters.is_trading_allowed():
+            import MetaTrader5 as mt5
+            trading_allowed = risk_filters.is_trading_allowed()
+            
+            if trading_allowed:
                 # 2. Run strategy iteration
                 strategy.run_iteration()
             else:
-                print("[BOT] Trading currently paused by risk filters.")
+                print("[BOT] Trading currently paused by risk filters. Monitoring existing positions and syncing closed trades...")
+                # Still monitor and sync closed trades
+                tf_map = {
+                    "M1": mt5.TIMEFRAME_M1,
+                    "M5": mt5.TIMEFRAME_M5,
+                    "M15": mt5.TIMEFRAME_M15,
+                    "M30": mt5.TIMEFRAME_M30,
+                    "H1": mt5.TIMEFRAME_H1
+                }
+                entry_tf = tf_map.get(getattr(config, 'ENTRY_TIMEFRAME', 'M1'), mt5.TIMEFRAME_M1)
+                df_entry = strategy.mt5_connector.get_market_data(config.SYMBOL, entry_tf, 200)
+                if df_entry is not None:
+                    strategy.monitor_positions(df_entry, entry_tf)
+                strategy.sync_closed_trades()
 
             # 3. Wait for next check (every 60 seconds)
             time.sleep(60)

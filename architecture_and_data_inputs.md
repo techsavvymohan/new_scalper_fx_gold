@@ -21,34 +21,54 @@ graph TD
     D -->|Compute Indicators| F[sats_logic.py: SATSLogic]
     D -->|Compute Volatility Regimes| G[regime_detection.py: RegimeDetection]
     D -->|Compute Statistical Probabilities| H[breakout_probability.py: BreakoutProbability]
-    D -->|Verify Rules & Confluence| I{Signal Validated?}
-    I -->|No| A
-    I -->|Yes| J[risk_management.py: RiskManagement]
-    J -->|Calculate dynamically sized SL/TP| D
+    D -->|Query Key Levels PDH/L, PWH/L| I[Location Queries]
+    D -->|Verify Rules & Confluence| J{Signal Validated?}
+    J -->|No| A
+    J -->|Yes| K[risk_management.py: RiskManagement]
+    K -->|Calculate dynamically sized SL/TP| D
     D -->|Send Order Request| E
-    E -->|Execute Trade on Broker Server| K[MT5 Trade Server]
-    D -->|Log Execution Details| L[data_logger.py: DataLogger]
-    D -->|Monitor Positions & Apply BE Stop| M[Position Monitoring]
-    M -->|Modify Server-side Stop Loss| E
-    D -->|Sync closed trade outcomes| N[Trade Synchronization]
-    L -->|Write to log file| O[(trade_log.csv)]
+    E -->|Execute Trade on Broker Server| L[MT5 Trade Server]
+    D -->|Log Execution & Location Details| M[data_logger.py: DataLogger]
+    D -->|Monitor Positions & Apply BE Stop| N[Position Monitoring]
+    N -->|Modify Server-side Stop Loss & Partial Close| E
+    D -->|Sync closed trade outcomes| O[Trade Synchronization]
+    M -->|Write to log file| P[(trade_log.csv)]
 ```
 
 ### Component File Directory
 
+#### Core Source Code (`src/`)
 *   **[main.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/main.py)**: The central driver. Sets up files, handles connection persistence, and ticks the trading strategy at 60-second intervals.
-*   **[strategy_execution.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/strategy_execution.py)**: Coordinates data retrieval, rule execution, signal gating (TQI, ER, Session, Regime), order execution, position management (+1R breakeven stops, 100-bar timeouts, 50% partial TP1 close), and deal synchronization.
+*   **[strategy_execution.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/strategy_execution.py)**: Coordinates data retrieval, rule execution, signal gating (TQI, ER, Session, Regime), order execution, location mapping (distances to PDH/PDL/PWH/PWL), position management (+1R breakeven stops, 100-bar timeouts, 50% partial TP1 close), and deal synchronization.
 *   **[sats_logic.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/sats_logic.py)**: Calculates the Self-Aware Trend System (SATS) indicators. Includes Kaufman Efficiency Ratio (ER), Trend Quality Index (TQI), adaptive band widths, asymmetric trailing stops, and early-exit Character Flips.
 *   **[regime_detection.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/regime_detection.py)**: Implements the 3-component rolling z-score volatility and trend classification engine.
 *   **[breakout_probability.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/breakout_probability.py)**: Statistically computes the probability of high/low breakout based on candle color histories.
 *   **[risk_management.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/risk_management.py)**: Handles position sizing based on balance percentage risk (0.5% default) and dynamically calculated Stop Loss and Take Profit levels.
 *   **[risk_filters.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/risk_filters.py)**: Guards the account balance by enforcing daily drawdown caps, max consecutive losses, and pause periods.
 *   **[mt5_connector.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/mt5_connector.py)**: Encapsulates all MT5 API commands (logins, order submission, partial closes, stop modifications, history queries, and auto-launch of `terminal64.exe`).
-*   **[data_logger.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/data_logger.py)**: Manages appending detailed structural and quantitative performance metrics to `data/trade_log.csv`.
+*   **[data_logger.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/data_logger.py)**: Manages appending detailed structural, location, and quantitative performance metrics to `data/trade_log.csv`.
 *   **[report_generator.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/report_generator.py)**: Processes historical logs to generate automated statistics and strategic trade diagnosis summaries.
 *   **[dashboard.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/dashboard.py)**: Provides a quick terminal interface wrapper to view diagnostic performance.
+*   **[backtester.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/src/backtester.py)**: Run backtests of the SATS indicators and strategy parameters on historical data files.
+
+#### Configuration (`config/`)
 *   **[config.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/config/config.py)**: Contains all tunable coefficients, threshold limits, server details, and execution parameters.
+
+#### Post-Trade Analytics (Root)
+*   **[phase1_analytics.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/phase1_analytics.py)**: Post-trade statistical analysis package compiling exit breakdowns, session vs regime heatmaps, confidence score buckets, key level proximity performance, and hourly UTC returns.
+
+#### Diagnostic & Helper Utilities (`scratch/`)
 *   **[phase0_diagnostic.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/phase0_diagnostic.py)**: Diagnostic tool that reads closed trade logs to verify R:R asymmetry, stop loss adjustments, and filter effectiveness.
+*   **[validate_integration.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/validate_integration.py)**: Runs verification on the MT5 configuration, terminal connectivity, and data streams.
+*   **[reconcile_and_report.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/reconcile_and_report.py)**: Cross-references logged transactions against MT5 server deals to ensure financial alignment.
+*   **[backfill_trades.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/backfill_trades.py)**: Utility to insert or backfill historic trade records to log files.
+*   **[execute_test_trade.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/execute_test_trade.py)**: Places a micro-lot test order to verify connection latency and execution logic.
+*   **[query_deals.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/query_deals.py)** / **[query_deals_detailed.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/query_deals_detailed.py)** / **[query_mt5_raw.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/query_mt5_raw.py)**: Commands to print server-side orders and historical execution records.
+*   **[test_execution.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/test_execution.py)**: Tests direct broker orders and execution triggers.
+*   **[trigger_sync.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/trigger_sync.py)**: Forces the reconciliation routine for open trade entries in the CSV log.
+*   **[generate_report.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/scratch/generate_report.py)**: Helper script to trigger PDF/markdown report creation.
+
+#### Automated Tests (`tests/`)
 *   **[test_quant_improvements.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/tests/test_quant_improvements.py)**: Verifies correctness of SATS indicator values, bands calculations, Efficiency Ratio, and Trend Quality Index.
 *   **[test_session_regime.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/tests/test_session_regime.py)**: Asserts correct session time windows (London, NY, Asia, Overlap) and z-score-based regime classification math.
 *   **[test_breakout_probability.py](file:///c:/Users/Zarvis/Downloads/xauusd_scalping_bot/xauusd_scalping_bot/tests/test_breakout_probability.py)**: Confirms correct statistical parsing and lookback calculation of candle color histories.
@@ -83,6 +103,7 @@ The bot operates strictly on localized, high-fidelity OHLCV market feeds. It doe
 |   - Signal Generator: Bar closes outside of SATS Kaufman Adaptive Bands         |
 |   - Quality Score: M5 Trend Quality Index (TQI) >= 0.60                         |
 |   - Breakout Probability: Historical chance of new High/Low >= 60.0%             |
+|   - Location Proximity: Queries and logs distance to PDH/PDL & PWH/PWL          |
 |   - Session & Volatility Regimes: Logged for classification & execution         |
 +---------------------------------------------------------------------------------+
 ```
@@ -99,7 +120,7 @@ The development of SATS V2 is structured across four phases. The implementation 
 | **Module 1** | **Session Engine** | Phase 1 | `src/strategy_execution.py` (line 16) | **Implemented** | Classifies `ASIA`, `LONDON`, `NEW_YORK`, `OVERLAP`. (Log-only by default). |
 | **Module 2** | **Regime Engine** | Phase 1 | `src/regime_detection.py` | **Implemented** | Composite 3-z-score regime classifier (`DEAD`, `EXPLOSIVE`, `TRENDING`, `RANGING`). (Log-only by default). |
 | **Module 3** | **Enhanced Logging** | Phase 1 | `src/data_logger.py` | **Implemented** | Captures 27 metrics including session, normalized regime z-scores, slippage, and R:R. |
-| **Module 4** | **Location Engine** | Phase 2 | N/A | *Deferred* | Will query pivot structures (PDH, PDL, PWH, PWL) to filter key entry locations. |
+| **Module 4** | **Location Engine** | Phase 2 | `src/strategy_execution.py` (line 199) | **Implemented** | Queries daily/weekly high/low structures (PDH, PDL, PWH, PWL) and logs absolute pip distance on entry. |
 | **Module 5** | **Box Theory Engine** | Phase 2 | N/A | *Deferred* | Will define M5 consolidation boxes to prevent trading inside range bounds. |
 | **Module 6** | **Volume Engine** | Phase 3 | N/A | *Deferred* | Will integrate tick volume z-scores to ensure liquidity validation. |
 | **Module 7** | **Confidence Score** | Phase 1 | `src/strategy_execution.py` (line 93) | **Implemented** | Weighted score combining TQI, ER, volatility ratio, and breakout probability. |
@@ -230,6 +251,11 @@ Every trade executed by the bot is recorded with the following parameters:
 | `intended_entry_price`| Float | `strategy_execution.py` | Target price computed at signal time. |
 | `realized_slippage` | Float | `strategy_execution.py` | Difference between `entry_price` and `intended_entry_price`. |
 | `breakout_prob` | Float | `breakout_probability.py` | Statistical breakout check value. |
+| `dist_to_pdh_pips` | Float | `strategy_execution.py` | Pip distance to Previous Daily High on entry. |
+| `dist_to_pdl_pips` | Float | `strategy_execution.py` | Pip distance to Previous Daily Low on entry. |
+| `dist_to_pwh_pips` | Float | `strategy_execution.py` | Pip distance to Previous Weekly High on entry. |
+| `dist_to_pwl_pips` | Float | `strategy_execution.py` | Pip distance to Previous Weekly Low on entry. |
+| `entry_hour_utc` | Integer | `strategy_execution.py` | UTC hour of trade entry execution. |
 
 ---
 
@@ -307,6 +333,12 @@ This utility reads `data/trade_log.csv` and highlights:
 *   Risk-to-reward asymmetry.
 *   Exit classification breakdown (`SL`, `TP`, `TIMEOUT`).
 *   Potential server-side execution slippage.
+
+### Post-Trade Analytics Report
+To compile session, regime, proximity, hourly, and confidence statistics from closed trades, execute:
+```powershell
+python phase1_analytics.py
+```
 
 ### Starting the SATS V2 Scalping Bot
 To launch the trading logic loop:

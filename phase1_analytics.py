@@ -29,7 +29,7 @@ def format_rr(val):
         return "N/A"
     return f"{val:,.2f}R"
 
-def run_analytics(file_path):
+def run_analytics(file_path, exclude_manual=False):
     print("=" * 70)
     print("SATS V2 POST-TRADE ANALYTICS SUMMARY")
     print(f"Target File: {file_path}")
@@ -51,6 +51,11 @@ def run_analytics(file_path):
 
     # Filter out active/open trades or rows without profit/exit information
     df_closed = df[df['profit'].notna() & (df['status'] != 'OPEN')].copy()
+
+    if exclude_manual and 'exit_type' in df_closed.columns:
+        manual_count = (df_closed['exit_type'] == 'MANUAL').sum()
+        df_closed = df_closed[df_closed['exit_type'] != 'MANUAL']
+        print(f"Excluded {manual_count} manually closed trades from analytics.")
 
     total_all = len(df)
     total_closed = len(df_closed)
@@ -242,5 +247,10 @@ if __name__ == "__main__":
         default=os.path.join("data", "trade_log.csv"), 
         help="Path to the trade log CSV file"
     )
+    parser.add_argument(
+        "--exclude-manual",
+        action="store_true",
+        help="Exclude manually closed trades (exit_type == 'MANUAL') from analytics"
+    )
     args = parser.parse_args()
-    run_analytics(args.file)
+    run_analytics(args.file, exclude_manual=args.exclude_manual)

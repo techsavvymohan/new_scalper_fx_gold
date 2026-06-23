@@ -23,23 +23,23 @@ MT5_PATH = os.environ.get("MT5_PATH", "C:\\Program Files\\MetaTrader 5\\terminal
 
 SYMBOL = "XAUUSD"
 # Confluence Timeframes
-MACRO_TREND_TIMEFRAME = "M15"  # Higher timeframe for trend filter (confluence bias)
-CONF_TREND_TIMEFRAME = "M15"    # Intermediate trend filter (since we only use M15 and M5 now)
-ENTRY_TIMEFRAME = "M5"         # Primary signal generator, entry trigger, and SL/TP timeframe
+MACRO_TREND_TIMEFRAME = "M5"  # Higher timeframe for trend filter (confluence bias)
+CONF_TREND_TIMEFRAME = "M5"    # Intermediate trend filter (since we only use M15 and M5 now)
+ENTRY_TIMEFRAME = "M1"         # Primary signal generator, entry trigger, and SL/TP timeframe
 
 
 # Risk Management
 RISK_PER_TRADE_PERCENT = 0.005  # 0.5% risk per trade
 SL_ATR_MULTIPLIER = 1.2        # Default Stop Loss ATR multiplier for V2
 MAX_SL_ATR_MULTIPLIER = 4  # Maximum Stop Loss of 4 ATR
-MAX_SL_PIPS = 50  # Maximum Stop Loss in pips (e.g. 50 pips is $5.00 distance on XAUUSD)
+MAX_SL_PIPS = 25  # Maximum Stop Loss in pips (e.g. 25 pips is $2.50 distance on XAUUSD)
 
 # Take Profit
 TP_MODE = "FIXED"
-TP_MULTIPLIER = 1.5           # Default TP multiplier (1.5R) for V2
-TP1_MULTIPLIER = 0.5  # Target 0.5R for TP1 (reduced size for quicker take-profit execution)
+TP_MULTIPLIER = 0.5           # Default TP multiplier (0.5R) for tight scalping
+TP1_MULTIPLIER = 0.5  # Target 0.5R for TP1
 TP1_PARTIAL_CLOSE_PERCENT = 0.5  # Close 50% of position at TP1
-MAX_TP_PIPS = 30  # Maximum Take Profit in pips (e.g. 30 pips is $3.00 distance on XAUUSD)
+MAX_TP_PIPS = 10  # Maximum Take Profit in pips (e.g. 10 pips is $1.00 distance on XAUUSD)
 
 # Trade Timeout
 TRADE_TIMEOUT_BARS = 100
@@ -76,7 +76,7 @@ RSI_MEMORY_BARS = 20
 VOLUME_WINDOW = 20
 
 # Risk Filters
-SESSION_FILTER_ENABLED = True
+SESSION_FILTER_ENABLED = False
 SESSION_START_HOUR = 7  # 07:00 UTC (12:30 PM IST)
 SESSION_END_HOUR = 16   # 16:00 UTC (09:30 PM IST)
 
@@ -98,10 +98,10 @@ MIN_FORWARD_TEST_DURATION_DAYS = 30
 MIN_FORWARD_TEST_TRADE_COUNT = 100
 
 # Breakout Probability Indicator
-BREAKOUT_PROBABILITY_ENABLED = True
+BREAKOUT_PROBABILITY_ENABLED = False
 BREAKOUT_PERCENTAGE_STEP = 0.0005  # 0.05% step between levels for XAUUSD CFD (smaller step size for scalping)
 BREAKOUT_NUM_LINES = 4
-BREAKOUT_MIN_PROBABILITY_THRESHOLD = 0.60  # Minimum probability threshold to confirm bias (e.g. 60% for higher accuracy)
+BREAKOUT_MIN_PROBABILITY_THRESHOLD = 0.50  # Minimum probability threshold to confirm bias (e.g. 60% for higher accuracy)
 
 # Data Storage
 TRADE_LOG_FILE = "trade_log.csv"
@@ -133,7 +133,11 @@ SESSION_HOURS = {
 }
 DISABLED_SESSIONS = []        # Disallowed trading sessions
 
-MIN_CONFIDENCE_SCORE = 55.0   # Confidence threshold (0-100)
+MIN_CONFIDENCE_SCORE = 0.0   # Confidence threshold (0-100)
+MIN_MACRO_TQI = 0.0
+MIN_MACRO_ER = 0.0
+MIN_MACRO_ATR_RATIO = 0.0
+MIN_ENTRY_TQI = 0.0
 
 CONSECUTIVE_LOSS_COOLDOWN_3 = 30  # Minutes to pause after 3 losses
 CONSECUTIVE_LOSS_COOLDOWN_5 = 60  # Minutes to pause after 5 losses
